@@ -20,6 +20,7 @@ import java.nio.file.Paths;
 import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 public class TuiConsole implements Tui {
 
@@ -31,7 +32,7 @@ public class TuiConsole implements Tui {
   };
   private final Terminal terminal;
   private final Screen screen;
-  private final Deque<KeyListener<?>> keyListeners = new ConcurrentLinkedDeque<>();
+  private final Deque<Consumer<String>> keyListeners = new ConcurrentLinkedDeque<>();
 
   public TuiConsole() {
     try {
@@ -118,17 +119,17 @@ public class TuiConsole implements Tui {
       if (key.isAltDown()) keyNotation = "Alt+" + keyNotation;
       if (key.isCtrlDown()) keyNotation = "Ctrl+" + keyNotation;
       String finalKeyNotation = keyNotation;
-      keyListeners.forEach(keyListener -> keyListener.keyTyped(new KeyEvent(keyListener, finalKeyNotation)));
+      keyListeners.forEach(keyListener -> keyListener.accept(finalKeyNotation));
     } while (run.getAsBoolean());
   }
 
   @Override
-  public void addKeyListener(KeyListener<?> keyListener) {
+  public void addKeyListener(Consumer<String> keyListener) {
     keyListeners.addFirst(keyListener);
   }
 
   @Override
-  public void removeKeyListener(KeyListener<?> keyListener) {
+  public void removeKeyListener(Consumer<String> keyListener) {
     keyListeners.remove(keyListener);
   }
 
