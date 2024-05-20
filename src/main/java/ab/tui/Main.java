@@ -135,7 +135,7 @@ public class Main {
     public static enum Action implements BiConsumer<String, Paint> {
       LEFT((s, p) -> {}),
       RIGHT((s, p) -> {}),
-      ENTER((s, p) -> {});
+      ENTER((s, p) -> { p.exit = true; });
 
       private final BiConsumer<String, Paint> consumer;
 
