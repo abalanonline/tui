@@ -1,6 +1,5 @@
 package ab.tui;
 
-import java.util.function.BiConsumer;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
@@ -17,4 +16,6 @@ public interface Tui extends AutoCloseable {
 
   void removeKeyListener(Consumer<String> keyListener);
 
+  @Override
+  void close();
 }

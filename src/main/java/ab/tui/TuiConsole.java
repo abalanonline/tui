@@ -35,17 +35,18 @@ public class TuiConsole implements Tui {
   private final Deque<Consumer<String>> keyListeners = new ConcurrentLinkedDeque<>();
 
   public TuiConsole() {
+    DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
+        .setTerminalEmulatorTitle("")
+        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP)
+        .setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(27));
     try {
-      DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
-          .setTerminalEmulatorTitle("")
-          .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP)
-          .setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(27));
-      try {
-        final Font font = Font.createFont(Font.TRUETYPE_FONT, Files.newInputStream(Paths.get("assets/font.ttf")))
-            .deriveFont(31.9F);
-        terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font));
-      } catch (NoSuchFileException | FontFormatException ignore) {
-      }
+      final Font font = Font.createFont(Font.TRUETYPE_FONT, Files.newInputStream(Paths.get("assets/font.ttf")))
+          .deriveFont(31.9F);
+      terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font));
+    } catch (IOException | FontFormatException ignore) {
+    }
+
+    try {
       terminal = terminalFactory.createTerminal();
       screen = new TerminalScreen(terminal);
       screen.startScreen();
@@ -56,9 +57,13 @@ public class TuiConsole implements Tui {
   }
 
   @Override
-  public void close() throws IOException {
-    screen.stopScreen();
-    terminal.close();
+  public void close() {
+    try {
+      screen.stopScreen();
+      terminal.close();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
   }
 
   @Override
@@ -96,7 +101,7 @@ public class TuiConsole implements Tui {
       screenRefresh();
       KeyStroke key = terminalPollInput();
       if (key == null) {
-        threadSleep(1);
+        threadSleep(10);
         continue;
       }
       String keyNotation;
