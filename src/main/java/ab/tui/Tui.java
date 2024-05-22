@@ -1,20 +1,18 @@
 package ab.tui;
 
-import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 public interface Tui extends AutoCloseable {
 
   /**
-   * @param attr is in CGA order - flash, rb, gb, bb, bright, rf, gf, bf
+   * @param attr in CGA order - flash, br, bg, bb, bright, fr, fg, fb
    */
   void setString(int x, int y, String s, int attr);
 
-  void idle(BooleanSupplier run);
-
-  void addKeyListener(Consumer<String> keyListener);
-
-  void removeKeyListener(Consumer<String> keyListener);
+  /**
+   * @param keyListener null to unset
+   */
+  void setKeyListener(Consumer<String> keyListener);
 
   @Override
   void close();

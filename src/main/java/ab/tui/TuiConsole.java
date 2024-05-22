@@ -13,16 +13,16 @@ import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration;
 
 import java.awt.*;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Paths;
-import java.util.Deque;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.function.BooleanSupplier;
+import java.time.Instant;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 
-public class TuiConsole implements Tui {
+public class TuiConsole implements Tui, Runnable {
 
   public static final TextColor[] TEXT_COLORS = {
       ANSI.BLACK, ANSI.BLUE, ANSI.GREEN, ANSI.CYAN,
@@ -32,18 +32,21 @@ public class TuiConsole implements Tui {
   };
   private final Terminal terminal;
   private final Screen screen;
-  private final Deque<Consumer<String>> keyListeners = new ConcurrentLinkedDeque<>();
+  private Consumer<String> keyListener = null;
+  private boolean stop;
+  private final Thread thread;
 
   public TuiConsole() {
     DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
         .setTerminalEmulatorTitle("")
-        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP)
-        .setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(27));
+        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
+
     try {
+      terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(27));
       final Font font = Font.createFont(Font.TRUETYPE_FONT, Files.newInputStream(Paths.get("assets/font.ttf")))
           .deriveFont(31.9F);
       terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font));
-    } catch (IOException | FontFormatException ignore) {
+    } catch (HeadlessException | IOException | FontFormatException ignore) {
     }
 
     try {
@@ -54,88 +57,97 @@ public class TuiConsole implements Tui {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+
+    thread = new Thread(this);
+    thread.start();
   }
 
   @Override
   public void close() {
+    stop = true;
     try {
+      if (!thread.equals(Thread.currentThread())) thread.join();
       screen.stopScreen();
       terminal.close();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+    } catch (IOException | InterruptedException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private void logError(String message, Exception exception) {
+    java.util.logging.Logger.getAnonymousLogger().log(Level.SEVERE, message, exception);
+    StringWriter stringWriter = new StringWriter();
+    stringWriter.append(Instant.now().toString()).append(' ').append(this.getClass().getName())
+        .append(" logError\nSEVERE: ").append(message).append('\n');
+    exception.printStackTrace(new PrintWriter(stringWriter));
+    int y = 0;
+    for (String s : stringWriter.toString().replace("\t", "    ").split("\r?\n")) {
+      int x = 0;
+      final TextCharacter[] cs = TextCharacter.fromString(s, ANSI.BLACK, ANSI.RED);
+      for (TextCharacter c : cs) screen.setCharacter(x++, y, c);
+      y++;
+    }
+    try {
+      screen.refresh();
+    } catch (IOException ignore) {
     }
   }
 
   @Override
   public void setString(int x, int y, String s, int attr) {
+    if (stop) throw new IllegalStateException("closed");
     final TextCharacter[] cs = TextCharacter.fromString(s, TEXT_COLORS[attr & 15], TEXT_COLORS[attr >> 4 & 7]);
     for (TextCharacter c : cs) screen.setCharacter(x++, y, c);
   }
 
-  private void screenRefresh() {
-    try {
-      screen.refresh();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+  private String getKeyNotation(KeyStroke key) {
+    StringBuilder keyNotation = new StringBuilder();
+    if (key.isCtrlDown()) keyNotation.append("Ctrl+");
+    if (key.isAltDown()) keyNotation.append("Alt+");
+    if (key.isShiftDown()) keyNotation.append("Shift+");
+    switch (key.getKeyType()) {
+      case Character:
+        keyNotation.append(key.getCharacter());
+        break;
+      case EOF:
+        throw new IllegalStateException("EOF");
+      case ArrowLeft:
+      case ArrowDown:
+      case ArrowUp:
+      case ArrowRight:
+        keyNotation.append(key.getKeyType().toString().substring(5));
+        break;
+      default:
+        keyNotation.append(key.getKeyType());
     }
-  }
-
-  private KeyStroke terminalPollInput() {
-    try {
-      return terminal.pollInput();
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
-    }
-  }
-
-  private void threadSleep(long ms) {
-    try {
-      Thread.sleep(ms);
-    } catch (InterruptedException ignore) {
-    }
+    return keyNotation.toString();
   }
 
   @Override
-  public void idle(BooleanSupplier run) {
-    do {
-      screenRefresh();
-      KeyStroke key = terminalPollInput();
-      if (key == null) {
-        threadSleep(10);
-        continue;
+  public void run() {
+    try {
+      while (!stop) {
+        screen.refresh();
+        KeyStroke key = terminal.pollInput();
+        if (key == null) {
+          Thread.sleep(10);
+          continue;
+        }
+        Consumer<String> keyListener = this.keyListener;
+        if (keyListener != null) try {
+          keyListener.accept(getKeyNotation(key));
+        } catch (RuntimeException e) {
+          logError("exception in keyListener", e);
+        }
       }
-      String keyNotation;
-      switch (key.getKeyType()) {
-        case Character:
-          keyNotation = key.getCharacter().toString();
-          break;
-        case EOF:
-          throw new IllegalStateException("EOF");
-        case ArrowLeft:
-        case ArrowDown:
-        case ArrowUp:
-        case ArrowRight:
-          keyNotation = key.getKeyType().toString().substring(5);
-          break;
-        default:
-          keyNotation = key.getKeyType().toString();
-      }
-      if (key.isShiftDown()) keyNotation = "Shift+" + keyNotation;
-      if (key.isAltDown()) keyNotation = "Alt+" + keyNotation;
-      if (key.isCtrlDown()) keyNotation = "Ctrl+" + keyNotation;
-      String finalKeyNotation = keyNotation;
-      keyListeners.forEach(keyListener -> keyListener.accept(finalKeyNotation));
-    } while (run.getAsBoolean());
+    } catch (Exception e) {
+      logError("Thread", e);
+    }
   }
 
   @Override
-  public void addKeyListener(Consumer<String> keyListener) {
-    keyListeners.addFirst(keyListener);
-  }
-
-  @Override
-  public void removeKeyListener(Consumer<String> keyListener) {
-    keyListeners.remove(keyListener);
+  public void setKeyListener(Consumer<String> keyListener) {
+    this.keyListener = keyListener;
   }
 
 }

@@ -46,7 +46,7 @@ public class Main {
         tui.setString(8, y, debug.get(i), bg + 15);
       }
       if ("Enter".equals(s)) stopStatus = true;
-      if ("Ctrl+e".equals(s)) throw new OutOfMemoryError();
+      if ("Ctrl+e".equals(s)) throw new ArithmeticException();
     }
 
     @Override
@@ -60,9 +60,14 @@ public class Main {
       tui.setString(19, 11, "Press enter to continue, Ctrl+E to crash.", 0x70);
       tui.setString(37, 13, "  OK  ", 0x30);
       final long stopTime = System.nanoTime() + 30_000_000_000L;
-      tui.addKeyListener(this);
-      tui.idle(() -> System.nanoTime() < stopTime && !stopStatus);
-      tui.removeKeyListener(this);
+      tui.setKeyListener(this);
+      while (System.nanoTime() < stopTime && !stopStatus) {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException ignore) {
+        }
+      }
+      tui.setKeyListener(null);
     }
   }
 
@@ -94,9 +99,14 @@ public class Main {
     public void run() {
       refresh();
       Consumer<String> keyListener = new EnumListener<>(this, Action.class, Action.KEY_BINDINGS);
-      tui.addKeyListener(keyListener);
-      tui.idle(() -> !exit);
-      tui.removeKeyListener(keyListener);
+      tui.setKeyListener(keyListener);
+      while (!exit) {
+        try {
+          Thread.sleep(10);
+        } catch (InterruptedException ignore) {
+        }
+      }
+      tui.setKeyListener(null);
     }
 
     public static enum Action implements EnumListener.Enum<Paint> {
@@ -129,8 +139,8 @@ public class Main {
     }
   }
 
-  public static void main(String[] args) throws Exception {
-    try (final Tui tui = new TuiConsole()) {
+  public static void main(String[] args) {
+    try (Tui tui = new TuiConsole()) {
       new Splash(tui).run();
       new Paint(tui).run();
     }
