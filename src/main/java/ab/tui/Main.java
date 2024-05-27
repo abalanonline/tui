@@ -22,7 +22,7 @@ public class Main {
       for (int iy = 0; iy <= h1; iy++) {
         int is = iy == 0 ? 0 : iy == h1 ? 6 : 3;
         for (int ix = 0; ix <= w1; ix++) {
-          tui.setString(x + ix, y + iy, s.substring(is + (ix == 0 ? 0 : ix == w1 ? 2 : 1)).substring(0, 1), attr);
+          tui.print(x + ix, y + iy, s.substring(is + (ix == 0 ? 0 : ix == w1 ? 2 : 1)).substring(0, 1), attr);
         }
       }
     }
@@ -31,7 +31,7 @@ public class Main {
       final StringBuffer sb = new StringBuffer();
       for (int iy = 0; iy < h; iy++) {
         while (sb.length() < w) sb.append(s);
-        tui.setString(x, y + iy, sb.substring(0, w), attr);
+        tui.print(x, y + iy, sb.substring(0, w), attr);
         sb.delete(0, 1);
       }
     }
@@ -43,7 +43,7 @@ public class Main {
       for (int i = debug.size() - 1, y = 21; i >= 0 && y > 1; i--, y--) {
         int bg = rainbow[i % rainbow.length] << 4;
         drawBox(4, y, 72, 1, "   ", bg);
-        tui.setString(8, y, debug.get(i), bg + 15);
+        tui.print(8, y, debug.get(i), bg + 15);
       }
       if ("Enter".equals(s)) stopStatus = true;
       if ("Ctrl+e".equals(s)) throw new ArithmeticException();
@@ -56,9 +56,9 @@ public class Main {
       fill(17, 9, 50, 8, "jumps over the lazy dog the quick brown fox ", 0x03);
       drawBox(15, 8, 50, 8, "         ", 0x70);
       drawBox(17, 9, 46, 6, "╔═╗║ ║╚═╝", 0x70);
-      tui.setString(27, 9, " Splash screen dialog box ", 0x70);
-      tui.setString(19, 11, "Press enter to continue, Ctrl+E to crash.", 0x70);
-      tui.setString(37, 13, "  OK  ", 0x30);
+      tui.print(27, 9, " Splash screen dialog box ", 0x70);
+      tui.print(19, 11, "Press enter to continue, Ctrl+E to crash.", 0x70);
+      tui.print(37, 13, "  OK  ", 0x30);
       final long stopTime = System.nanoTime() + 30_000_000_000L;
       tui.setKeyListener(this);
       while (System.nanoTime() < stopTime && !stopStatus) {
@@ -83,7 +83,7 @@ public class Main {
     }
 
     private void move(int x, int y) {
-      tui.setString(this.x, this.y, "  ", ink ? 0x07 : 0x70);
+      tui.print(this.x, this.y, "  ", ink ? 0x07 : 0x70);
       this.x += x * 2;
       this.y += y;
       this.x = Math.min(Math.max(0, this.x), 78);
@@ -92,7 +92,7 @@ public class Main {
     }
 
     private void refresh() {
-      tui.setString(this.x, this.y, "[]", ink ? 0x07 : 0x70);
+      tui.print(this.x, this.y, "[]", ink ? 0x07 : 0x70);
     }
 
     @Override

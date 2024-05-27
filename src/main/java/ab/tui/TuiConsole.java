@@ -1,5 +1,6 @@
 package ab.tui;
 
+import com.googlecode.lanterna.TerminalSize;
 import com.googlecode.lanterna.TextCharacter;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.TextColor.ANSI;
@@ -13,11 +14,10 @@ import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration;
 
 import java.awt.*;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.time.Instant;
 import java.util.function.Consumer;
 import java.util.logging.Level;
@@ -35,20 +35,15 @@ public class TuiConsole implements Tui, Runnable {
   private Consumer<String> keyListener = null;
   private boolean stop;
   private final Thread thread;
+  private final Dimension padding;
 
   public TuiConsole() {
-    DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
-        .setTerminalEmulatorTitle("")
-        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
+    this(builder());
+  }
 
-    try {
-      terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(27));
-      final Font font = Font.createFont(Font.TRUETYPE_FONT, Files.newInputStream(Paths.get("assets/font.ttf")))
-          .deriveFont(31.9F);
-      terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font));
-    } catch (HeadlessException | IOException | FontFormatException ignore) {
-    }
-
+  private TuiConsole(Builder builder) {
+    padding = builder.padding == null ? new Dimension() : builder.padding;
+    DefaultTerminalFactory terminalFactory = builder.terminalFactory;
     try {
       terminal = terminalFactory.createTerminal();
       screen = new TerminalScreen(terminal);
@@ -60,6 +55,59 @@ public class TuiConsole implements Tui, Runnable {
 
     thread = new Thread(this);
     thread.start();
+  }
+
+  public static Builder builder() {
+    return new Builder();
+  }
+
+  public static class Builder {
+    private final DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
+        .setTerminalEmulatorTitle("")
+        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
+    private Dimension padding;
+    public Builder monochrome() {
+      terminalFactory.setTerminalEmulatorColorConfiguration(LanternaColor.VGA_MONO);
+      return this;
+    }
+    public Builder withColor(int... color) {
+      int[] c = new int[19];
+      System.arraycopy(color, 0, c, 0, Math.min(color.length, c.length));
+      if (color.length <= 16) {
+        c[16] = c[0];
+        c[17] = c[7];
+        c[18] = c[15];
+      }
+      terminalFactory.setTerminalEmulatorColorConfiguration(LanternaColor.fromColor(c));
+      return this;
+    }
+    public Builder withSize(int w, int h) {
+      terminalFactory.setInitialTerminalSize(new TerminalSize(w, h));
+      return this;
+    }
+    public Builder withPadding(int w, int h) {
+      padding = new Dimension(w, h);
+      return this;
+    }
+    public Builder withFont(InputStream fontStream, double fontSize) {
+      try {
+        Font font = Font.createFont(Font.TRUETYPE_FONT, fontStream).deriveFont((float) fontSize);
+        terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font));
+      } catch (HeadlessException | FontFormatException | IOException e) {
+        throw new IllegalStateException();
+      }
+      return this;
+    }
+    public Builder withFontSize(int fontSize) {
+      try {
+        terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(fontSize));
+      } catch (HeadlessException ignore) {
+      }
+      return this;
+    }
+    public TuiConsole build() {
+      return new TuiConsole(this);
+    }
   }
 
   @Override
@@ -94,7 +142,9 @@ public class TuiConsole implements Tui, Runnable {
   }
 
   @Override
-  public void setString(int x, int y, String s, int attr) {
+  public void print(int x, int y, String s, int attr) {
+    x += padding.width;
+    y += padding.height;
     if (stop) throw new IllegalStateException("closed");
     final TextCharacter[] cs = TextCharacter.fromString(s, TEXT_COLORS[attr & 15], TEXT_COLORS[attr >> 4 & 7]);
     for (TextCharacter c : cs) screen.setCharacter(x++, y, c);

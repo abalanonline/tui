@@ -7,7 +7,7 @@ public interface Tui extends AutoCloseable {
   /**
    * @param attr in CGA order - flash, br, bg, bb, bright, fr, fg, fb
    */
-  void setString(int x, int y, String s, int attr);
+  void print(int x, int y, String s, int attr);
 
   /**
    * @param keyListener null to unset
