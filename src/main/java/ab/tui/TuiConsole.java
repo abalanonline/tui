@@ -19,6 +19,7 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.io.UncheckedIOException;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.logging.Level;
 
@@ -71,8 +72,7 @@ public class TuiConsole implements Tui, Runnable {
       return this;
     }
     public Builder withColor(int... color) {
-      int[] c = new int[19];
-      System.arraycopy(color, 0, c, 0, Math.min(color.length, c.length));
+      int[] c = Arrays.copyOf(color, 19);
       if (color.length <= 16) {
         c[16] = c[0];
         c[17] = c[7];
