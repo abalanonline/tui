@@ -150,6 +150,15 @@ public class TuiConsole implements Tui, Runnable {
     for (TextCharacter c : cs) screen.setCharacter(x++, y, c);
   }
 
+  @Override
+  public void update() {
+    try {
+      screen.refresh();
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
   private String getKeyNotation(KeyStroke key) {
     StringBuilder keyNotation = new StringBuilder();
     if (key.isCtrlDown()) keyNotation.append("Ctrl+");
@@ -177,7 +186,6 @@ public class TuiConsole implements Tui, Runnable {
   public void run() {
     try {
       while (!stop) {
-        screen.refresh();
         KeyStroke key = terminal.pollInput();
         if (key == null) {
           Thread.sleep(10);

@@ -1,5 +1,6 @@
 package ab.tui;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiConsumer;
@@ -63,6 +64,8 @@ public class Main {
       tui.setKeyListener(this);
       while (System.nanoTime() < stopTime && !stopStatus) {
         try {
+          tui.print(68, 0, " " + Instant.now().toString().substring(11, 19) + " ", 0x1B);
+          tui.update();
           Thread.sleep(10);
         } catch (InterruptedException ignore) {
         }
@@ -93,6 +96,7 @@ public class Main {
 
     private void refresh() {
       tui.print(this.x, this.y, "[]", ink ? 0x07 : 0x70);
+      tui.update();
     }
 
     @Override
@@ -139,10 +143,14 @@ public class Main {
     }
   }
 
+  public static void testTui(Tui tui) {
+    new Splash(tui).run();
+    new Paint(tui).run();
+  }
+
   public static void main(String[] args) {
     try (Tui tui = new TuiConsole()) {
-      new Splash(tui).run();
-      new Paint(tui).run();
+      testTui(tui);
     }
   }
 

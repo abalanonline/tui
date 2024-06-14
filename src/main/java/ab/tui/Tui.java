@@ -9,6 +9,9 @@ public interface Tui extends AutoCloseable {
    */
   void print(int x, int y, String s, int attr);
 
+  // also paint, repaint, refresh
+  void update();
+
   /**
    * @param keyListener null to unset
    */
