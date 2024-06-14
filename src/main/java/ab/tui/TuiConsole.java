@@ -122,25 +122,6 @@ public class TuiConsole implements Tui, Runnable {
     }
   }
 
-  private void logError(String message, Exception exception) {
-    java.util.logging.Logger.getAnonymousLogger().log(Level.SEVERE, message, exception);
-    StringWriter stringWriter = new StringWriter();
-    stringWriter.append(Instant.now().toString()).append(' ').append(this.getClass().getName())
-        .append(" logError\nSEVERE: ").append(message).append('\n');
-    exception.printStackTrace(new PrintWriter(stringWriter));
-    int y = 0;
-    for (String s : stringWriter.toString().replace("\t", "    ").split("\r?\n")) {
-      int x = 0;
-      final TextCharacter[] cs = TextCharacter.fromString(s, ANSI.BLACK, ANSI.RED);
-      for (TextCharacter c : cs) screen.setCharacter(x++, y, c);
-      y++;
-    }
-    try {
-      screen.refresh();
-    } catch (IOException ignore) {
-    }
-  }
-
   @Override
   public void print(int x, int y, String s, int attr) {
     x += padding.width;
@@ -195,11 +176,11 @@ public class TuiConsole implements Tui, Runnable {
         if (keyListener != null) try {
           keyListener.accept(getKeyNotation(key));
         } catch (RuntimeException e) {
-          logError("exception in keyListener", e);
+          TuiUtil.logError(this, "exception in keyListener", e);
         }
       }
     } catch (Exception e) {
-      logError("Thread", e);
+      TuiUtil.logError(this, "Thread", e);
     }
   }
 
