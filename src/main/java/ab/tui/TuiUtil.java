@@ -42,6 +42,7 @@ public class TuiUtil {
 
     @Override
     public void accept(String s) {
+      if ("Clock".equals(s)) return; // midi clock
       int[] rainbow = {1, 3, 2, 6, 4, 5};
       debug.add(s);
       for (int i = debug.size() - 1, y = 21; i >= 0 && y > 1; i--, y--) {

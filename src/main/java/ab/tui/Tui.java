@@ -13,6 +13,10 @@ public interface Tui extends AutoCloseable {
   void update();
 
   /**
+   * To make key events consistent among different software, this guideline should be used.
+   * Modifier keys have first letter capitalized and concatenated with "+" in this order "Ctrl", "Alt", "Shift".
+   * If shift alternates the character, it must be omitted from the notation. Use "Alt+?" instead of "Alt+Shift+/".
+   * Examples: "Up", "Down", "Tab", "Esc", "Ctrl+Alt+Shift+F1", "Ctrl+Alt+a", "@"
    * @param keyListener null to unset
    */
   void setKeyListener(Consumer<String> keyListener);

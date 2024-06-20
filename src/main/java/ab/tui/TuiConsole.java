@@ -5,6 +5,7 @@ import com.googlecode.lanterna.TextCharacter;
 import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.TextColor.ANSI;
 import com.googlecode.lanterna.input.KeyStroke;
+import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
@@ -15,13 +16,9 @@ import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration;
 import java.awt.*;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.io.UncheckedIOException;
-import java.time.Instant;
 import java.util.Arrays;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 
 public class TuiConsole implements Tui, Runnable {
 
@@ -140,14 +137,32 @@ public class TuiConsole implements Tui, Runnable {
     }
   }
 
+  private String getCharacterNotation(KeyStroke key) {
+    char c = key.getCharacter();
+    switch (c) {
+      case '\u001A': c = key.isShiftDown() ? 'Z' : 'z'; break;
+      case '\u001C': c = key.isShiftDown() ? '|' : '\\'; break;
+      case '\u001D': c = key.isShiftDown() ? '}' : ']'; break;
+      default:
+        return "?";
+    }
+    StringBuilder keyNotation = new StringBuilder();
+    if (key.isCtrlDown()) keyNotation.append("Ctrl+");
+    if (key.isAltDown()) keyNotation.append("Alt+");
+    keyNotation.append(c);
+    return keyNotation.toString();
+  }
+
   private String getKeyNotation(KeyStroke key) {
     StringBuilder keyNotation = new StringBuilder();
     if (key.isCtrlDown()) keyNotation.append("Ctrl+");
     if (key.isAltDown()) keyNotation.append("Alt+");
-    if (key.isShiftDown()) keyNotation.append("Shift+");
+    if (key.isShiftDown() && key.getKeyType() != KeyType.Character) keyNotation.append("Shift+");
     switch (key.getKeyType()) {
       case Character:
-        keyNotation.append(key.getCharacter());
+        char character = key.getCharacter();
+        if (character < 0x20) return getCharacterNotation(key);
+        keyNotation.append(character);
         break;
       case EOF:
         throw new IllegalStateException("EOF");
