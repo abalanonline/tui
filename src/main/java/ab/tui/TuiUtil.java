@@ -31,6 +31,13 @@ import java.util.logging.Level;
 
 public class TuiUtil {
 
+  public static final int BLACK_RED = 0x10;
+  public static final int WHITE_BLACK = 0x07;
+  public static final int BLACK_WHITE = 0x70;
+  public static final int BRIGHT_CYAN_BLUE = 0x4E;
+  public static final int BLACK_CYAN = 0x60;
+  public static final int CYAN_BLACK = 0x06;
+
   static class Splash implements Runnable, Consumer<String> {
     private final Tui tui;
     private boolean stopStatus;
@@ -62,8 +69,12 @@ public class TuiUtil {
 
     @Override
     public void accept(String s) {
+      if ("Close".equals(s)) {
+        stopStatus = true;
+        return;
+      }
       if ("Clock".equals(s)) return; // midi clock
-      int[] rainbow = {1, 3, 2, 6, 4, 5};
+      int[] rainbow = {4, 6, 2, 3, 1, 5}; // bcgyrm
       debug.add(s);
       for (int i = debug.size() - 1, y = 21; i >= 0 && y > 1; i--, y--) {
         int bg = rainbow[i % rainbow.length] << 4;
@@ -76,19 +87,19 @@ public class TuiUtil {
 
     @Override
     public void run() {
-      drawBox(0, 0, 80, 24, "┌─┐│ │└─┘", 0x1B);
-      fill(4, 2, 72, 20, "the quick brown fox jumps over the lazy dog ", 0x1B);
-      fill(17, 9, 50, 8, "jumps over the lazy dog the quick brown fox ", 0x03);
-      drawBox(15, 8, 50, 8, "         ", 0x70);
-      drawBox(17, 9, 46, 6, "╔═╗║ ║╚═╝", 0x70);
-      tui.print(27, 9, " Splash screen dialog box ", 0x70);
-      tui.print(19, 11, "Press enter to continue, Ctrl+E to crash.", 0x70);
-      tui.print(37, 13, "  OK  ", 0x30);
+      drawBox(0, 0, 80, 24, "┌─┐│ │└─┘", BRIGHT_CYAN_BLUE);
+      fill(4, 2, 72, 20, "the quick brown fox jumps over the lazy dog ", BRIGHT_CYAN_BLUE);
+      fill(17, 9, 50, 8, "jumps over the lazy dog the quick brown fox ", CYAN_BLACK);
+      drawBox(15, 8, 50, 8, "         ", BLACK_WHITE);
+      drawBox(17, 9, 46, 6, "╔═╗║ ║╚═╝", BLACK_WHITE);
+      tui.print(27, 9, " Splash screen dialog box ", BLACK_WHITE);
+      tui.print(19, 11, "Press enter to continue, Ctrl+E to crash.", BLACK_WHITE);
+      tui.print(37, 13, "  OK  ", BLACK_CYAN);
       final long stopTime = System.nanoTime() + 30_000_000_000L;
       tui.setKeyListener(this);
       while (System.nanoTime() < stopTime && !stopStatus) {
         try {
-          tui.print(68, 0, " " + Instant.now().toString().substring(11, 19) + " ", 0x1B);
+          tui.print(68, 0, " " + Instant.now().toString().substring(11, 19) + " ", BRIGHT_CYAN_BLUE);
           tui.update();
           Thread.sleep(10);
         } catch (InterruptedException ignore) {
@@ -110,7 +121,7 @@ public class TuiUtil {
     }
 
     private void move(int x, int y) {
-      tui.print(this.x, this.y, "  ", ink ? 0x07 : 0x70);
+      tui.print(this.x, this.y, "  ", ink ? WHITE_BLACK : BLACK_WHITE);
       this.x += x * 2;
       this.y += y;
       this.x = Math.min(Math.max(0, this.x), 78);
@@ -119,7 +130,7 @@ public class TuiUtil {
     }
 
     private void refresh() {
-      tui.print(this.x, this.y, "[]", ink ? 0x07 : 0x70);
+      tui.print(this.x, this.y, "[]", ink ? WHITE_BLACK : BLACK_WHITE);
       tui.update();
     }
 
@@ -145,6 +156,7 @@ public class TuiUtil {
       INK((o, s) -> { o.ink = true; o.refresh(); }),
       PAPER((o, s) -> { o.ink = false; o.refresh(); }),
       TOGGLE((o, s) -> { o.ink = !o.ink; o.refresh(); }),
+      CLOSE((o, s) -> { o.exit = true; }),
       ENTER((o, s) -> { o.exit = true; });
 
       public static final String KEY_BINDINGS =
@@ -181,7 +193,7 @@ public class TuiUtil {
     exception.printStackTrace(new PrintWriter(stringWriter));
     int y = 0;
     for (String s : stringWriter.toString().replace("\t", "    ").split("\r?\n")) {
-      tui.print(0, y++, s, 0x40);
+      tui.print(0, y++, s, BLACK_RED);
     }
     tui.update();
   }

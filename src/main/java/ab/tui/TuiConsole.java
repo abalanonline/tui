@@ -37,10 +37,10 @@ import java.util.function.Consumer;
 public class TuiConsole implements Tui {
 
   public static final TextColor[] TEXT_COLORS = {
-      ANSI.BLACK, ANSI.BLUE, ANSI.GREEN, ANSI.CYAN,
-      ANSI.RED, ANSI.MAGENTA, ANSI.YELLOW, ANSI.WHITE,
-      ANSI.BLACK_BRIGHT, ANSI.BLUE_BRIGHT, ANSI.GREEN_BRIGHT, ANSI.CYAN_BRIGHT,
-      ANSI.RED_BRIGHT, ANSI.MAGENTA_BRIGHT, ANSI.YELLOW_BRIGHT, ANSI.WHITE_BRIGHT
+      ANSI.BLACK, ANSI.RED, ANSI.GREEN, ANSI.YELLOW,
+      ANSI.BLUE, ANSI.MAGENTA, ANSI.CYAN, ANSI.WHITE,
+      ANSI.BLACK_BRIGHT, ANSI.RED_BRIGHT, ANSI.GREEN_BRIGHT, ANSI.YELLOW_BRIGHT,
+      ANSI.BLUE_BRIGHT, ANSI.MAGENTA_BRIGHT, ANSI.CYAN_BRIGHT, ANSI.WHITE_BRIGHT
   };
   private final Terminal terminal;
   private final Screen screen;
@@ -127,7 +127,9 @@ public class TuiConsole implements Tui {
         keyNotation.append(character);
         break;
       case EOF:
-        throw new IllegalStateException("EOF");
+        close();
+        keyNotation.append("Close");
+        break;
       case ArrowLeft:
       case ArrowDown:
       case ArrowUp:

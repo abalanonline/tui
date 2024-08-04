@@ -25,7 +25,7 @@ public interface Tui extends AutoCloseable {
   Dimension getSize();
 
   /**
-   * @param attr in CGA order - flash, br, bg, bb, bright, fr, fg, fb
+   * @param attr in ANSI order - KRGYBMCW - flash, bb, bg, br, bright, fb, fg, fr.
    */
   void print(int x, int y, String s, int attr);
 
