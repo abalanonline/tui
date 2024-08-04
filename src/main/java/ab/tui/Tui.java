@@ -17,9 +17,12 @@
 
 package ab.tui;
 
+import java.awt.*;
 import java.util.function.Consumer;
 
 public interface Tui extends AutoCloseable {
+
+  Dimension getSize();
 
   /**
    * @param attr in CGA order - flash, br, bg, bb, bright, fr, fg, fb

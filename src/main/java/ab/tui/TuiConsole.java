@@ -28,16 +28,13 @@ import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.googlecode.lanterna.terminal.ansi.UnixLikeTerminal;
-import com.googlecode.lanterna.terminal.swing.SwingTerminalFontConfiguration;
 
 import java.awt.*;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.UncheckedIOException;
-import java.util.Arrays;
 import java.util.function.Consumer;
 
-public class TuiConsole implements Tui, Runnable {
+public class TuiConsole implements Tui {
 
   public static final TextColor[] TEXT_COLORS = {
       ANSI.BLACK, ANSI.BLUE, ANSI.GREEN, ANSI.CYAN,
@@ -50,15 +47,11 @@ public class TuiConsole implements Tui, Runnable {
   private Consumer<String> keyListener = null;
   private boolean stop;
   private final Thread thread;
-  private final Dimension padding;
 
   public TuiConsole() {
-    this(builder());
-  }
-
-  private TuiConsole(Builder builder) {
-    padding = builder.padding == null ? new Dimension() : builder.padding;
-    DefaultTerminalFactory terminalFactory = builder.terminalFactory;
+    DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
+        .setTerminalEmulatorTitle("")
+        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
     try {
       terminal = terminalFactory.createTerminal();
       screen = new TerminalScreen(terminal);
@@ -68,60 +61,8 @@ public class TuiConsole implements Tui, Runnable {
       throw new UncheckedIOException(e);
     }
 
-    thread = new Thread(this);
+    thread = new Thread(this::run);
     thread.start();
-  }
-
-  public static Builder builder() {
-    return new Builder();
-  }
-
-  public static class Builder {
-    private final DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
-        .setTerminalEmulatorTitle("")
-        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
-    private Dimension padding;
-    public Builder monochrome() {
-      terminalFactory.setTerminalEmulatorColorConfiguration(LanternaColor.VGA_MONO);
-      return this;
-    }
-    public Builder withColor(int... color) {
-      int[] c = Arrays.copyOf(color, 19);
-      if (color.length <= 16) {
-        c[16] = c[0];
-        c[17] = c[7];
-        c[18] = c[15];
-      }
-      terminalFactory.setTerminalEmulatorColorConfiguration(LanternaColor.fromColor(c));
-      return this;
-    }
-    public Builder withSize(int w, int h) {
-      terminalFactory.setInitialTerminalSize(new TerminalSize(w, h));
-      return this;
-    }
-    public Builder withPadding(int w, int h) {
-      padding = new Dimension(w, h);
-      return this;
-    }
-    public Builder withFont(InputStream fontStream, double fontSize) {
-      try {
-        Font font = Font.createFont(Font.TRUETYPE_FONT, fontStream).deriveFont((float) fontSize);
-        terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.newInstance(font));
-      } catch (HeadlessException | FontFormatException | IOException e) {
-        throw new IllegalStateException();
-      }
-      return this;
-    }
-    public Builder withFontSize(int fontSize) {
-      try {
-        terminalFactory.setTerminalEmulatorFontConfiguration(SwingTerminalFontConfiguration.getDefaultOfSize(fontSize));
-      } catch (HeadlessException ignore) {
-      }
-      return this;
-    }
-    public TuiConsole build() {
-      return new TuiConsole(this);
-    }
   }
 
   @Override
@@ -137,9 +78,13 @@ public class TuiConsole implements Tui, Runnable {
   }
 
   @Override
+  public Dimension getSize() {
+    TerminalSize size = screen.getTerminalSize();
+    return new Dimension(size.getColumns(), size.getRows());
+  }
+
+  @Override
   public void print(int x, int y, String s, int attr) {
-    x += padding.width;
-    y += padding.height;
     if (stop) throw new IllegalStateException("closed");
     final TextCharacter[] cs = TextCharacter.fromString(s, TEXT_COLORS[attr & 15], TEXT_COLORS[attr >> 4 & 7]);
     for (TextCharacter c : cs) screen.setCharacter(x++, y, c);
@@ -192,14 +137,16 @@ public class TuiConsole implements Tui, Runnable {
       case ReverseTab:
         keyNotation.append("Shift+Tab");
         break;
+      case Escape:
+        keyNotation.append("Esc");
+        break;
       default:
         keyNotation.append(key.getKeyType());
     }
     return keyNotation.toString();
   }
 
-  @Override
-  public void run() {
+  private void run() {
     try {
       while (!stop) {
         KeyStroke key = terminal.pollInput();
