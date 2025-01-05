@@ -20,7 +20,7 @@ package ab.tui;
 public class Main {
 
   public static void main(String[] args) {
-    try (Tui tui = new TuiConsole()) {
+    try (Tui tui = new PoorTuiConsole()) {
       TuiUtil.testTui(tui);
     }
   }
