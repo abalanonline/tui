@@ -29,7 +29,8 @@ import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.googlecode.lanterna.terminal.ansi.UnixLikeTerminal;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Dimension;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.function.Consumer;
@@ -37,6 +38,10 @@ import java.util.function.Consumer;
 public class TuiConsole implements Tui {
 
   public static final TextColor[] TEXT_COLORS = {
+      new Ansi("0;30", "40"), new Ansi("0;31", "41"), new Ansi("0;32", "42"), new Ansi("0;33", "43"),
+      new Ansi("0;34", "44"), new Ansi("0;35", "45"), new Ansi("0;36", "46"), new Ansi("0;37", "47"),
+      new Ansi("1;30", "100"), new Ansi("1;31", "101"), new Ansi("1;32", "102"), new Ansi("1;33", "103"),
+      new Ansi("1;34", "104"), new Ansi("1;35", "105"), new Ansi("1;36", "106"), new Ansi("1;37", "107"),
       ANSI.BLACK, ANSI.RED, ANSI.GREEN, ANSI.YELLOW,
       ANSI.BLUE, ANSI.MAGENTA, ANSI.CYAN, ANSI.WHITE,
       ANSI.BLACK_BRIGHT, ANSI.RED_BRIGHT, ANSI.GREEN_BRIGHT, ANSI.YELLOW_BRIGHT,
@@ -50,6 +55,7 @@ public class TuiConsole implements Tui {
 
   public TuiConsole() {
     DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
+        .setForceTextTerminal(true)
         .setTerminalEmulatorTitle("")
         .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
     try {
@@ -171,6 +177,46 @@ public class TuiConsole implements Tui {
   @Override
   public void setKeyListener(Consumer<String> keyListener) {
     this.keyListener = keyListener;
+  }
+
+  public static class Ansi implements TextColor {
+    private final String fg;
+    private final String bg;
+
+    public Ansi(String fg, String bg) {
+      this.fg = fg;
+      this.bg = bg;
+    }
+
+    @Override
+    public byte[] getForegroundSGRSequence() {
+      return fg.getBytes();
+    }
+
+    @Override
+    public byte[] getBackgroundSGRSequence() {
+      return bg.getBytes();
+    }
+
+    @Override
+    public int getRed() {
+      return 0;
+    }
+
+    @Override
+    public int getGreen() {
+      return 0;
+    }
+
+    @Override
+    public int getBlue() {
+      return 0;
+    }
+
+    @Override
+    public Color toColor() {
+      return null;
+    }
   }
 
 }
