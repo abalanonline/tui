@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
-import java.util.logging.Level;
 
 public class TuiUtil {
 
@@ -185,7 +184,6 @@ public class TuiUtil {
   }
 
   public static void logError(Tui tui, String message, Exception exception) {
-    java.util.logging.Logger.getAnonymousLogger().log(Level.SEVERE, message, exception);
     StringWriter stringWriter = new StringWriter();
     final StackTraceElement stackTraceElement = exception.getStackTrace()[0];
     stringWriter.append(Instant.now().toString()).append(' ').append(Tui.class.getName())

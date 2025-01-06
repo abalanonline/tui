@@ -23,7 +23,6 @@ import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.screen.Screen;
-import com.googlecode.lanterna.screen.TerminalScreen;
 import com.googlecode.lanterna.terminal.Terminal;
 
 import java.awt.Dimension;
@@ -52,7 +51,7 @@ public class PoorTuiConsole implements Tui {
   public PoorTuiConsole() {
     try {
       terminal = new PoorTerminal();
-      screen = new TerminalScreen(terminal);
+      screen = new PoorScreen(terminal);
       screen.startScreen();
       screen.setCursorPosition(null);
     } catch (IOException e) {
