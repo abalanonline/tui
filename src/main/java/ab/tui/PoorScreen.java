@@ -41,7 +41,6 @@ public class PoorScreen implements Screen {
   @Override
   public void startScreen() throws IOException {
     terminal.enterPrivateMode();
-    terminal.getTerminalSize();
     terminal.clearScreen();
     terminal.setCursorVisible(false);
   }
@@ -128,7 +127,7 @@ public class PoorScreen implements Screen {
   }
 
   @Override
-  public void refresh() throws IOException {
+  public synchronized void refresh() throws IOException {
     terminal.resetColorAndSGR();
     StringBuilder stringBuilder = new StringBuilder(2 * 80);
     for (int y = 0; y < 25; y++) {
@@ -148,6 +147,7 @@ public class PoorScreen implements Screen {
           co = cn;
         }
         if (cn != null) stringBuilder.append(this.c[y][x]);
+        this.color[y][x] = null;
       }
       if (stringBuilder.length() > 0) {
         terminal.putString(stringBuilder.toString());

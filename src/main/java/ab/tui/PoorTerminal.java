@@ -38,7 +38,7 @@ public class PoorTerminal implements Terminal {
     systemExec("stty raw -echo");
   }
 
-  public void systemExec(String command) {
+  public String systemExec(String command) {
     try {
       ProcessBuilder processBuilder = new ProcessBuilder();
       processBuilder.redirectInput(new File("/dev/tty"));
@@ -51,7 +51,8 @@ public class PoorTerminal implements Terminal {
         throw new IOException(e);
       }
       String error = new String(process.getErrorStream().readAllBytes());
-      if (exitStatus != 0 || !error.isEmpty()) throw new IOException(error);
+      if (exitStatus != 0 || !error.isEmpty()) throw new IOException(error.trim());
+      return new String(process.getInputStream().readAllBytes());
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

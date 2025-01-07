@@ -76,7 +76,12 @@ public class PoorTuiConsole implements Tui {
 
   @Override
   public Dimension getSize() {
-    TerminalSize size = screen.getTerminalSize();
+    TerminalSize size;
+    try {
+      size = terminal.getTerminalSize();
+    } catch (IOException e) {
+      size = screen.getTerminalSize();
+    }
     return new Dimension(size.getColumns(), size.getRows());
   }
 

@@ -17,6 +17,7 @@
 
 package ab.tui;
 
+import java.awt.Dimension;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.time.Instant;
@@ -36,6 +37,7 @@ public class TuiUtil {
   public static final int BRIGHT_CYAN_BLUE = 0x4E;
   public static final int BLACK_CYAN = 0x60;
   public static final int CYAN_BLACK = 0x06;
+  public static final int CYAN_BLUE = 0x46;
 
   static class Splash implements Runnable, Consumer<String> {
     private final Tui tui;
@@ -98,6 +100,20 @@ public class TuiUtil {
       tui.setKeyListener(this);
       while (System.nanoTime() < stopTime && !stopStatus) {
         try {
+          Dimension size = tui.getSize();
+          int w = size.width - 1;
+          int h = size.height - 1;
+          if (w >= 80) {
+            for (int i = 80; i < w; i++) tui.print(i, 0, "─", CYAN_BLUE);
+            tui.print(w, 0, "┐", CYAN_BLUE);
+            for (int i = 1; i < h; i++) tui.print(w, i, "│", CYAN_BLUE);
+          }
+          if (h >= 24) {
+            for (int i = 24; i < h; i++) tui.print(0, i, "│", CYAN_BLUE);
+            tui.print(0, h, "└", CYAN_BLUE);
+            for (int i = 1; i < w; i++) tui.print(i, h, "─", CYAN_BLUE);
+          }
+          tui.print(w, h, "┘", CYAN_BLUE);
           tui.print(68, 0, " " + Instant.now().toString().substring(11, 19) + " ", BRIGHT_CYAN_BLUE);
           tui.update();
           Thread.sleep(10);
