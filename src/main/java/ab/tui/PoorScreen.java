@@ -26,13 +26,19 @@ import com.googlecode.lanterna.screen.Screen;
 import com.googlecode.lanterna.screen.TabBehaviour;
 import com.googlecode.lanterna.terminal.Terminal;
 
+import java.awt.Dimension;
 import java.io.IOException;
 import java.util.Objects;
 
 public class PoorScreen implements Screen {
+  public static final int MAXH = 250;
+  public static final int MAXW = 800;
   private final Terminal terminal;
-  char[][] c = new char[25][80];
-  TextCharacter[][] color = new TextCharacter[25][80];
+  char[][] c = new char[MAXH][MAXW];
+  TextCharacter[][] color = new TextCharacter[MAXH][MAXW];
+  boolean[][] update = new boolean[MAXH][MAXW];
+  Dimension lastSize;
+  boolean sizeChanged;
 
   public PoorScreen(Terminal terminal) {
     this.terminal = terminal;
@@ -81,7 +87,17 @@ public class PoorScreen implements Screen {
 
   @Override
   public TerminalSize getTerminalSize() {
-    return new TerminalSize(80, 24);
+    try {
+      TerminalSize size = terminal.getTerminalSize();
+      Dimension dimension = new Dimension(size.getColumns(), size.getRows());
+      if (!dimension.equals(lastSize)) {
+        lastSize = dimension;
+        sizeChanged = true;
+      }
+      return size;
+    } catch (IOException e) {
+      return new TerminalSize(80, 24);
+    }
   }
 
   public String getColor(TextCharacter textCharacter) {
@@ -94,6 +110,7 @@ public class PoorScreen implements Screen {
   public void setCharacter(int column, int row, TextCharacter screenCharacter) {
     c[row][column] = screenCharacter.getCharacterString().charAt(0);
     color[row][column] = screenCharacter;
+    update[row][column] = true;
   }
 
   @Override
@@ -128,12 +145,16 @@ public class PoorScreen implements Screen {
 
   @Override
   public synchronized void refresh() throws IOException {
+    getTerminalSize();
+    boolean sizeChanged = this.sizeChanged;
+    this.sizeChanged = false;
     terminal.resetColorAndSGR();
-    StringBuilder stringBuilder = new StringBuilder(2 * 80);
-    for (int y = 0; y < 25; y++) {
+    StringBuilder stringBuilder = new StringBuilder(2 * MAXW);
+    for (int y = 0; y < lastSize.height; y++) {
       String co = null;
-      for (int x = 0; x < 80; x++) {
-        String cn = getColor(this.color[y][x]);
+      for (int x = 0; x < lastSize.width; x++) {
+        boolean u = (this.update[y][x] || sizeChanged) && this.c[y][x] != 0;
+        String cn = u ? getColor(this.color[y][x]) : null;
         if (!Objects.equals(cn, co)) {
           if (stringBuilder.length() > 0) {
             terminal.putString(stringBuilder.toString());
@@ -147,13 +168,14 @@ public class PoorScreen implements Screen {
           co = cn;
         }
         if (cn != null) stringBuilder.append(this.c[y][x]);
-        this.color[y][x] = null;
+        this.update[y][x] = false;
       }
       if (stringBuilder.length() > 0) {
         terminal.putString(stringBuilder.toString());
         stringBuilder.setLength(0);
       }
     }
+    terminal.flush();
   }
 
   @Override

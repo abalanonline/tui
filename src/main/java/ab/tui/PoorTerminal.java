@@ -27,14 +27,28 @@ import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.terminal.Terminal;
 import com.googlecode.lanterna.terminal.TerminalResizeListener;
 
+import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class PoorTerminal implements Terminal {
 
+  public Dimension size;
+  private PrintStream out;
+
   public PoorTerminal() {
+    out = System.out;
+    Map<String, String> map = Arrays.stream(systemExec("stty -a").split(";\\s+"))
+        .collect(Collectors.toMap(a -> a.split("\\s", 2)[0], a -> a.split("\\s", 2)[1]));
+    size = new Dimension(Integer.parseInt(map.get("columns")), Integer.parseInt(map.get("rows")));
     systemExec("stty raw -echo");
   }
 
@@ -59,7 +73,9 @@ public class PoorTerminal implements Terminal {
   }
 
   public void print(String s) {
-    System.out.print(s);
+    synchronized (out) {
+      out.print(s);
+    }
   }
 
   public void csi(String s) {
@@ -165,7 +181,9 @@ public class PoorTerminal implements Terminal {
 
   @Override
   public TerminalSize getTerminalSize() throws IOException {
-    return new TerminalSize(80, 24);
+    setCursorPosition(900, 900);
+    csi("6n");
+    return new TerminalSize(size.width, size.height);
   }
 
   @Override
@@ -180,7 +198,9 @@ public class PoorTerminal implements Terminal {
 
   @Override
   public void flush() throws IOException {
-    System.out.flush();
+    synchronized (out) {
+      out.flush();
+    }
   }
 
   @Override
@@ -199,6 +219,9 @@ public class PoorTerminal implements Terminal {
     return s.toString();
   }
 
+  /**
+   * It is expected that pollInput is called from one thread.
+   */
   @Override
   public KeyStroke pollInput() throws IOException {
     int available = System.in.available();
@@ -211,11 +234,23 @@ public class PoorTerminal implements Terminal {
       case '\u0005': return new KeyStroke('e', true, false);
       case '\u001B':
         String csi = readCsi();
+        Pattern CPR = Pattern.compile("\\[(\\d+);(\\d+)R");
+        Matcher cpr = CPR.matcher(csi);
+        if (cpr.matches()) {
+          size = new Dimension(Integer.parseInt(cpr.group(2)), Integer.parseInt(cpr.group(1)));
+          return pollInput();
+        }
         switch (csi) {
           case "[A": return new KeyStroke(KeyType.ArrowUp);
           case "[B": return new KeyStroke(KeyType.ArrowDown);
           case "[C": return new KeyStroke(KeyType.ArrowRight);
           case "[D": return new KeyStroke(KeyType.ArrowLeft);
+          case "[15~": return new KeyStroke(KeyType.F5);
+          case "[17~": return new KeyStroke(KeyType.F6);
+          case "[18~": return new KeyStroke(KeyType.F7);
+          case "[19~": return new KeyStroke(KeyType.F8);
+          case "[20~": return new KeyStroke(KeyType.F9);
+          case "[21~": return new KeyStroke(KeyType.F10);
           default:
             return null;
         }
