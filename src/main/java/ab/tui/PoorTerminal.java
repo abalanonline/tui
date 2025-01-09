@@ -17,16 +17,6 @@
 
 package ab.tui;
 
-import com.googlecode.lanterna.SGR;
-import com.googlecode.lanterna.TerminalPosition;
-import com.googlecode.lanterna.TerminalSize;
-import com.googlecode.lanterna.TextColor;
-import com.googlecode.lanterna.graphics.TextGraphics;
-import com.googlecode.lanterna.input.KeyStroke;
-import com.googlecode.lanterna.input.KeyType;
-import com.googlecode.lanterna.terminal.Terminal;
-import com.googlecode.lanterna.terminal.TerminalResizeListener;
-
 import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
@@ -34,12 +24,11 @@ import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class PoorTerminal implements Terminal {
+public class PoorTerminal {
 
   public Dimension size;
   private final PrintStream out;
@@ -90,13 +79,11 @@ public class PoorTerminal implements Terminal {
     sgr(new String(bytes));
   }
 
-  @Override
   public void enterPrivateMode() {
     csi("?1049h");
     flush();
   }
 
-  @Override
   public void exitPrivateMode() {
     resetColorAndSGR();
     setCursorVisible(true);
@@ -104,106 +91,42 @@ public class PoorTerminal implements Terminal {
     flush();
   }
 
-  @Override
   public void clearScreen() {
     csi("2J");
   }
 
-  @Override
   public void setCursorPosition(int x, int y) {
     csi((y + 1) + ";" + (x + 1) + "H");
   }
 
-  @Override
-  public void setCursorPosition(TerminalPosition position) {
-    throw new IllegalStateException();
-  }
-
-  @Override
-  public TerminalPosition getCursorPosition() {
-    throw new IllegalStateException();
-  }
-
-  @Override
   public void setCursorVisible(boolean visible) {
     csi(visible ? "?25h" : "?25l");
   }
 
-  @Override
-  public void putCharacter(char c) {
-    throw new IllegalStateException();
-  }
-
-  @Override
   public void putString(String string) {
     print(string);
   }
 
-  @Override
-  public TextGraphics newTextGraphics() {
-    throw new IllegalStateException();
-  }
-
-  @Override
-  public void enableSGR(SGR sgr) {
-    throw new IllegalStateException();
-  }
-
-  @Override
-  public void disableSGR(SGR sgr) {
-    throw new IllegalStateException();
-  }
-
-  @Override
   public void resetColorAndSGR() {
     sgr("0");
   }
 
-  @Override
-  public void setForegroundColor(TextColor color) {
-    sgr(color.getForegroundSGRSequence());
+  public void setColor(int color) {
+    sgr(String.format("%d;3%d;%d%d", color >> 3 & 1, color & 7, (color & 0x80) == 0 ? 4 : 10, color >> 4 & 7));
   }
 
-  @Override
-  public void setBackgroundColor(TextColor color) {
-    sgr(color.getBackgroundSGRSequence());
-  }
-
-  @Override
-  public void addResizeListener(TerminalResizeListener listener) {
-    //throw new IllegalStateException();
-  }
-
-  @Override
-  public void removeResizeListener(TerminalResizeListener listener) {
-    throw new IllegalStateException();
-  }
-
-  @Override
-  public TerminalSize getTerminalSize() {
+  public Dimension getTerminalSize() {
     setCursorPosition(900, 900);
     csi("6n");
-    return new TerminalSize(size.width, size.height);
+    return new Dimension(size);
   }
 
-  @Override
-  public byte[] enquireTerminal(int timeout, TimeUnit timeoutUnit) {
-    throw new IllegalStateException();
-  }
-
-  @Override
-  public void bell() {
-    throw new IllegalStateException();
-  }
-
-  @Override
   public void flush() {
     synchronized (out) {
       out.flush();
     }
   }
 
-  @Override
   public void close() {
     exitPrivateMode();
     systemExec("stty -raw echo");
@@ -222,16 +145,15 @@ public class PoorTerminal implements Terminal {
   /**
    * It is expected that pollInput is called from one thread.
    */
-  @Override
-  public KeyStroke pollInput() throws IOException {
+  public String pollInput() throws IOException {
     int available = System.in.available();
     if (available == 0) return null;
     char c = (char) System.in.read();
     switch (c) {
       case '\r':
       case '\n':
-        return new KeyStroke(KeyType.Enter);
-      case '\u0005': return new KeyStroke('e', true, false);
+        return "Enter";
+      case '\u0005': return "Ctrl+e";
       case '\u001B':
         String csi = readCsi();
         Pattern CPR = Pattern.compile("\\[(\\d+);(\\d+)R");
@@ -241,26 +163,21 @@ public class PoorTerminal implements Terminal {
           return pollInput();
         }
         switch (csi) {
-          case "[A": return new KeyStroke(KeyType.ArrowUp);
-          case "[B": return new KeyStroke(KeyType.ArrowDown);
-          case "[C": return new KeyStroke(KeyType.ArrowRight);
-          case "[D": return new KeyStroke(KeyType.ArrowLeft);
-          case "[15~": return new KeyStroke(KeyType.F5);
-          case "[17~": return new KeyStroke(KeyType.F6);
-          case "[18~": return new KeyStroke(KeyType.F7);
-          case "[19~": return new KeyStroke(KeyType.F8);
-          case "[20~": return new KeyStroke(KeyType.F9);
-          case "[21~": return new KeyStroke(KeyType.F10);
+          case "[A": return "Up";
+          case "[B": return "Down";
+          case "[C": return "Right";
+          case "[D": return "Left";
+          case "[15~": return "F5";
+          case "[17~": return "F6";
+          case "[18~": return "F7";
+          case "[19~": return "F8";
+          case "[20~": return "F9";
+          case "[21~": return "F10";
           default:
-            return null;
+            return "^[" + csi;
         }
       default:
-        return null;
+        return String.format("\\u%04X", (int) c);
     }
-  }
-
-  @Override
-  public KeyStroke readInput() {
-    throw new IllegalStateException();
   }
 }

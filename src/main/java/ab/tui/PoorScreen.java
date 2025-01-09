@@ -17,107 +17,53 @@
 
 package ab.tui;
 
-import com.googlecode.lanterna.TerminalPosition;
-import com.googlecode.lanterna.TerminalSize;
-import com.googlecode.lanterna.TextCharacter;
-import com.googlecode.lanterna.graphics.TextGraphics;
-import com.googlecode.lanterna.input.KeyStroke;
-import com.googlecode.lanterna.screen.Screen;
-import com.googlecode.lanterna.screen.TabBehaviour;
-import com.googlecode.lanterna.terminal.Terminal;
-
 import java.awt.Dimension;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
 
-public class PoorScreen implements Screen {
-  private final Terminal terminal;
+public class PoorScreen {
+  private final PoorTerminal terminal;
   char[][] c = new char[0][];
-  TextCharacter[][] color = new TextCharacter[0][];
+  int[][] color = new int[0][];
   boolean[][] update = new boolean[0][];
   Dimension lastSize;
   boolean sizeChanged;
 
-  public PoorScreen(Terminal terminal) {
+  public PoorScreen(PoorTerminal terminal) {
     this.terminal = terminal;
   }
 
-  @Override
-  public void startScreen() throws IOException {
+  public void startScreen() {
     terminal.enterPrivateMode();
     terminal.clearScreen();
     terminal.setCursorVisible(false);
   }
 
-  @Override
-  public void close() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void stopScreen() throws IOException {
+  public void stopScreen() {
     terminal.exitPrivateMode();
   }
 
-  @Override
-  public void clear() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TerminalPosition getCursorPosition() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setCursorPosition(TerminalPosition position) {
-  }
-
-  @Override
-  public TabBehaviour getTabBehaviour() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void setTabBehaviour(TabBehaviour tabBehaviour) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TerminalSize getTerminalSize() {
-    try {
-      TerminalSize size = terminal.getTerminalSize();
-      Dimension dimension = new Dimension(size.getColumns(), size.getRows());
-      if (!dimension.equals(lastSize)) {
-        lastSize = dimension;
-        sizeChanged = true;
-      }
-      return size;
-    } catch (IOException e) {
-      return new TerminalSize(80, 24);
+  public Dimension getTerminalSize() {
+    Dimension size = terminal.getTerminalSize();
+    if (!size.equals(lastSize)) {
+      lastSize = size;
+      sizeChanged = true;
     }
+    return size;
   }
 
-  public String getColor(TextCharacter textCharacter) {
-    if (textCharacter == null) return null;
-    return new String(textCharacter.getForegroundColor().getForegroundSGRSequence()) + ";" +
-        new String(textCharacter.getBackgroundColor().getBackgroundSGRSequence());
-  }
-
-  @Override
-  public void setCharacter(int column, int row, TextCharacter screenCharacter) {
+  public void setCharacter(int column, int row, char screenCharacterChar, int screenCharacterColor) {
     if (c.length <= row) c = Arrays.copyOf(c, row + 1);
     char[] rc = c[row];
     if (rc == null) rc = c[row] = new char[column + 1];
     if (rc.length <= column) rc = c[row] = Arrays.copyOf(rc, column + 1);
-    rc[column] = screenCharacter.getCharacterString().charAt(0);
+    rc[column] = screenCharacterChar;
 
     if (color.length <= row) color = Arrays.copyOf(color, row + 1);
-    TextCharacter[] rcolor = color[row];
-    if (rcolor == null) rcolor = color[row] = new TextCharacter[column + 1];
+    int[] rcolor = color[row];
+    if (rcolor == null) rcolor = color[row] = new int[column + 1];
     if (rcolor.length <= column) rcolor = color[row] = Arrays.copyOf(rcolor, column + 1);
-    rcolor[column] = screenCharacter;
+    rcolor[column] = screenCharacterColor;
 
     if (update.length <= row) update = Arrays.copyOf(update, row + 1);
     boolean[] rupdate = update[row];
@@ -126,38 +72,7 @@ public class PoorScreen implements Screen {
     rupdate[column] = true;
   }
 
-  @Override
-  public void setCharacter(TerminalPosition position, TextCharacter screenCharacter) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TextGraphics newTextGraphics() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TextCharacter getFrontCharacter(int column, int row) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TextCharacter getFrontCharacter(TerminalPosition position) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TextCharacter getBackCharacter(int column, int row) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TextCharacter getBackCharacter(TerminalPosition position) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public synchronized void refresh() throws IOException {
+  public synchronized void refresh() {
     getTerminalSize();
     boolean sizeChanged = this.sizeChanged;
     this.sizeChanged = false;
@@ -165,25 +80,24 @@ public class PoorScreen implements Screen {
     StringBuilder stringBuilder = new StringBuilder();
     int height = Math.min(lastSize.height, c.length);
     for (int y = 0; y < height; y++) {
-      String co = null;
+      int co = -1;
       char[] cy = this.c[y];
       int width = Math.min(lastSize.width, cy == null ? 0 : cy.length);
       for (int x = 0; x < width; x++) {
         boolean u = (this.update[y][x] || sizeChanged) && this.c[y][x] != 0;
-        String cn = u ? getColor(this.color[y][x]) : null;
+        int cn = u ? this.color[y][x] : -1;
         if (!Objects.equals(cn, co)) {
           if (stringBuilder.length() > 0) {
             terminal.putString(stringBuilder.toString());
             stringBuilder.setLength(0);
           }
-          if (co == null) terminal.setCursorPosition(x, y);
-          if (cn != null) {
-            terminal.setForegroundColor(this.color[y][x].getForegroundColor());
-            terminal.setBackgroundColor(this.color[y][x].getBackgroundColor());
+          if (co < 0) terminal.setCursorPosition(x, y);
+          if (cn >= 0) {
+            terminal.setColor(this.color[y][x]);
           }
           co = cn;
         }
-        if (cn != null) stringBuilder.append(this.c[y][x]);
+        if (cn >= 0) stringBuilder.append(this.c[y][x]);
         this.update[y][x] = false;
       }
       if (stringBuilder.length() > 0) {
@@ -192,30 +106,5 @@ public class PoorScreen implements Screen {
       }
     }
     terminal.flush();
-  }
-
-  @Override
-  public void refresh(RefreshType refreshType) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public TerminalSize doResizeIfNecessary() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public void scrollLines(int firstLine, int lastLine, int distance) {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public KeyStroke pollInput() {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public KeyStroke readInput() {
-    throw new UnsupportedOperationException();
   }
 }
