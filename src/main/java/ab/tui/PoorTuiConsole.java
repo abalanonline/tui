@@ -23,10 +23,7 @@ import com.googlecode.lanterna.TextColor;
 import com.googlecode.lanterna.input.KeyStroke;
 import com.googlecode.lanterna.input.KeyType;
 import com.googlecode.lanterna.screen.Screen;
-import com.googlecode.lanterna.screen.TerminalScreen;
-import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
 import com.googlecode.lanterna.terminal.Terminal;
-import com.googlecode.lanterna.terminal.ansi.UnixLikeTerminal;
 
 import java.awt.Dimension;
 import java.io.IOException;
@@ -36,10 +33,6 @@ import java.util.function.Consumer;
 public class PoorTuiConsole implements Tui {
 
   public static final TextColor[] TEXT_COLORS = {
-      TextColor.ANSI.BLACK, TextColor.ANSI.RED, TextColor.ANSI.GREEN, TextColor.ANSI.YELLOW,
-      TextColor.ANSI.BLUE, TextColor.ANSI.MAGENTA, TextColor.ANSI.CYAN, TextColor.ANSI.WHITE,
-      TextColor.ANSI.BLACK_BRIGHT, TextColor.ANSI.RED_BRIGHT, TextColor.ANSI.GREEN_BRIGHT, TextColor.ANSI.YELLOW_BRIGHT,
-      TextColor.ANSI.BLUE_BRIGHT, TextColor.ANSI.MAGENTA_BRIGHT, TextColor.ANSI.CYAN_BRIGHT, TextColor.ANSI.WHITE_BRIGHT,
       new PoorTextColor("0;30", "40"), new PoorTextColor("0;31", "41"),
       new PoorTextColor("0;32", "42"), new PoorTextColor("0;33", "43"),
       new PoorTextColor("0;34", "44"), new PoorTextColor("0;35", "45"),
@@ -56,14 +49,8 @@ public class PoorTuiConsole implements Tui {
   private final Thread thread;
 
   public PoorTuiConsole() {
-    DefaultTerminalFactory terminalFactory = new DefaultTerminalFactory()
-        .setForceTextTerminal(true)
-        .setTerminalEmulatorTitle("")
-        .setUnixTerminalCtrlCBehaviour(UnixLikeTerminal.CtrlCBehaviour.TRAP);
     try {
-//      terminal = terminalFactory.createTerminal();
       terminal = new PoorTerminal();
-//      screen = new TerminalScreen(terminal);
       screen = new PoorScreen(terminal);
       screen.startScreen();
       screen.setCursorPosition(null);

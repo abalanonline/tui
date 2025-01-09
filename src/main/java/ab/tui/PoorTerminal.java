@@ -42,7 +42,7 @@ import java.util.stream.Collectors;
 public class PoorTerminal implements Terminal {
 
   public Dimension size;
-  private PrintStream out;
+  private final PrintStream out;
 
   public PoorTerminal() {
     out = System.out;
@@ -91,13 +91,13 @@ public class PoorTerminal implements Terminal {
   }
 
   @Override
-  public void enterPrivateMode() throws IOException {
+  public void enterPrivateMode() {
     csi("?1049h");
     flush();
   }
 
   @Override
-  public void exitPrivateMode() throws IOException {
+  public void exitPrivateMode() {
     resetColorAndSGR();
     setCursorVisible(true);
     csi("?1049l");
@@ -105,67 +105,67 @@ public class PoorTerminal implements Terminal {
   }
 
   @Override
-  public void clearScreen() throws IOException {
+  public void clearScreen() {
     csi("2J");
   }
 
   @Override
-  public void setCursorPosition(int x, int y) throws IOException {
+  public void setCursorPosition(int x, int y) {
     csi((y + 1) + ";" + (x + 1) + "H");
   }
 
   @Override
-  public void setCursorPosition(TerminalPosition position) throws IOException {
+  public void setCursorPosition(TerminalPosition position) {
     throw new IllegalStateException();
   }
 
   @Override
-  public TerminalPosition getCursorPosition() throws IOException {
+  public TerminalPosition getCursorPosition() {
     throw new IllegalStateException();
   }
 
   @Override
-  public void setCursorVisible(boolean visible) throws IOException {
+  public void setCursorVisible(boolean visible) {
     csi(visible ? "?25h" : "?25l");
   }
 
   @Override
-  public void putCharacter(char c) throws IOException {
+  public void putCharacter(char c) {
     throw new IllegalStateException();
   }
 
   @Override
-  public void putString(String string) throws IOException {
+  public void putString(String string) {
     print(string);
   }
 
   @Override
-  public TextGraphics newTextGraphics() throws IOException {
+  public TextGraphics newTextGraphics() {
     throw new IllegalStateException();
   }
 
   @Override
-  public void enableSGR(SGR sgr) throws IOException {
+  public void enableSGR(SGR sgr) {
     throw new IllegalStateException();
   }
 
   @Override
-  public void disableSGR(SGR sgr) throws IOException {
+  public void disableSGR(SGR sgr) {
     throw new IllegalStateException();
   }
 
   @Override
-  public void resetColorAndSGR() throws IOException {
+  public void resetColorAndSGR() {
     sgr("0");
   }
 
   @Override
-  public void setForegroundColor(TextColor color) throws IOException {
+  public void setForegroundColor(TextColor color) {
     sgr(color.getForegroundSGRSequence());
   }
 
   @Override
-  public void setBackgroundColor(TextColor color) throws IOException {
+  public void setBackgroundColor(TextColor color) {
     sgr(color.getBackgroundSGRSequence());
   }
 
@@ -180,31 +180,31 @@ public class PoorTerminal implements Terminal {
   }
 
   @Override
-  public TerminalSize getTerminalSize() throws IOException {
+  public TerminalSize getTerminalSize() {
     setCursorPosition(900, 900);
     csi("6n");
     return new TerminalSize(size.width, size.height);
   }
 
   @Override
-  public byte[] enquireTerminal(int timeout, TimeUnit timeoutUnit) throws IOException {
+  public byte[] enquireTerminal(int timeout, TimeUnit timeoutUnit) {
     throw new IllegalStateException();
   }
 
   @Override
-  public void bell() throws IOException {
+  public void bell() {
     throw new IllegalStateException();
   }
 
   @Override
-  public void flush() throws IOException {
+  public void flush() {
     synchronized (out) {
       out.flush();
     }
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     exitPrivateMode();
     systemExec("stty -raw echo");
   }
@@ -260,7 +260,7 @@ public class PoorTerminal implements Terminal {
   }
 
   @Override
-  public KeyStroke readInput() throws IOException {
+  public KeyStroke readInput() {
     throw new IllegalStateException();
   }
 }

@@ -28,15 +28,14 @@ import com.googlecode.lanterna.terminal.Terminal;
 
 import java.awt.Dimension;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Objects;
 
 public class PoorScreen implements Screen {
-  public static final int MAXH = 250;
-  public static final int MAXW = 800;
   private final Terminal terminal;
-  char[][] c = new char[MAXH][MAXW];
-  TextCharacter[][] color = new TextCharacter[MAXH][MAXW];
-  boolean[][] update = new boolean[MAXH][MAXW];
+  char[][] c = new char[0][];
+  TextCharacter[][] color = new TextCharacter[0][];
+  boolean[][] update = new boolean[0][];
   Dimension lastSize;
   boolean sizeChanged;
 
@@ -52,7 +51,7 @@ public class PoorScreen implements Screen {
   }
 
   @Override
-  public void close() throws IOException {
+  public void close() {
     throw new UnsupportedOperationException();
   }
 
@@ -108,9 +107,23 @@ public class PoorScreen implements Screen {
 
   @Override
   public void setCharacter(int column, int row, TextCharacter screenCharacter) {
-    c[row][column] = screenCharacter.getCharacterString().charAt(0);
-    color[row][column] = screenCharacter;
-    update[row][column] = true;
+    if (c.length <= row) c = Arrays.copyOf(c, row + 1);
+    char[] rc = c[row];
+    if (rc == null) rc = c[row] = new char[column + 1];
+    if (rc.length <= column) rc = c[row] = Arrays.copyOf(rc, column + 1);
+    rc[column] = screenCharacter.getCharacterString().charAt(0);
+
+    if (color.length <= row) color = Arrays.copyOf(color, row + 1);
+    TextCharacter[] rcolor = color[row];
+    if (rcolor == null) rcolor = color[row] = new TextCharacter[column + 1];
+    if (rcolor.length <= column) rcolor = color[row] = Arrays.copyOf(rcolor, column + 1);
+    rcolor[column] = screenCharacter;
+
+    if (update.length <= row) update = Arrays.copyOf(update, row + 1);
+    boolean[] rupdate = update[row];
+    if (rupdate == null) rupdate = update[row] = new boolean[column + 1];
+    if (rupdate.length <= column) rupdate = update[row] = Arrays.copyOf(rupdate, column + 1);
+    rupdate[column] = true;
   }
 
   @Override
@@ -149,10 +162,13 @@ public class PoorScreen implements Screen {
     boolean sizeChanged = this.sizeChanged;
     this.sizeChanged = false;
     terminal.resetColorAndSGR();
-    StringBuilder stringBuilder = new StringBuilder(2 * MAXW);
-    for (int y = 0; y < lastSize.height; y++) {
+    StringBuilder stringBuilder = new StringBuilder();
+    int height = Math.min(lastSize.height, c.length);
+    for (int y = 0; y < height; y++) {
       String co = null;
-      for (int x = 0; x < lastSize.width; x++) {
+      char[] cy = this.c[y];
+      int width = Math.min(lastSize.width, cy == null ? 0 : cy.length);
+      for (int x = 0; x < width; x++) {
         boolean u = (this.update[y][x] || sizeChanged) && this.c[y][x] != 0;
         String cn = u ? getColor(this.color[y][x]) : null;
         if (!Objects.equals(cn, co)) {
@@ -179,7 +195,7 @@ public class PoorScreen implements Screen {
   }
 
   @Override
-  public void refresh(RefreshType refreshType) throws IOException {
+  public void refresh(RefreshType refreshType) {
     throw new UnsupportedOperationException();
   }
 
@@ -194,12 +210,12 @@ public class PoorScreen implements Screen {
   }
 
   @Override
-  public KeyStroke pollInput() throws IOException {
+  public KeyStroke pollInput() {
     throw new UnsupportedOperationException();
   }
 
   @Override
-  public KeyStroke readInput() throws IOException {
+  public KeyStroke readInput() {
     throw new UnsupportedOperationException();
   }
 }
