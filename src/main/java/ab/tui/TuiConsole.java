@@ -24,7 +24,6 @@ import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -118,25 +117,24 @@ public class TuiConsole implements Tui {
       Dimension size = getSize();
       int height = Math.min(size.height, color.length);
       for (int y = 0; y < height; y++) {
-        int co = -1;
         char[] cy = this.c[y];
-        int width = Math.min(size.width, cy == null ? 0 : cy.length);
+        int[] cly = this.color[y];
+        int co = -1;
+        int width = Math.min(size.width, cly.length);
         for (int x = 0; x < width; x++) {
-          boolean u = this.color[y][x] < UPDATED_BIT || sizeUpdated;
-          int cn = u ? this.color[y][x] : -1;
-          if (!Objects.equals(cn, co)) {
+          boolean u = cly[x] < UPDATED_BIT || sizeUpdated;
+          int cn = u ? cly[x] : -1;
+          if (cn != co) {
             if (stringBuilder.length() > 0) {
               print(stringBuilder.toString());
               stringBuilder.setLength(0);
             }
             if (co < 0) csiCursorPosition(x, y);
-            if (cn >= 0) {
-              sgrColor(this.color[y][x]);
-            }
+            if (cn >= 0) sgrColor(cly[x]);
             co = cn;
           }
           if (cn >= 0) stringBuilder.append(this.c[y][x]);
-          this.color[y][x] |= UPDATED_BIT;
+          cly[x] |= UPDATED_BIT;
         }
         if (stringBuilder.length() > 0) {
           print(stringBuilder.toString());
