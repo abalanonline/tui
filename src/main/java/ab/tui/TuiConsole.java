@@ -18,28 +18,43 @@
 package ab.tui;
 
 import java.awt.Dimension;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UncheckedIOException;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Objects;
 import java.util.function.Consumer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class TuiConsole implements Tui {
 
-  private final PoorTerminal terminal;
   private Consumer<String> keyListener = null;
   private boolean stop;
   private final Thread thread;
 
-  public static final int UPDATED_BIT = 0x100;
+  private static final int UPDATED_BIT = 0x100;
   private final Object colorLock = new Object();
-  int[][] color = new int[0][];
-  char[][] c = new char[0][];
-  Dimension lastSize;
+  private int[][] color = new int[0][];
+  private char[][] c = new char[0][];
+  private Dimension size;
+  private boolean sizeUpdated;
+  private final PrintStream out;
 
   public TuiConsole() {
-    terminal = new PoorTerminal();
-    terminal.enterPrivateMode();
-    terminal.clearScreen();
-    terminal.setCursorVisible(false);
+    out = System.out;
+    Map<String, String> map = Arrays.stream(systemExec("stty -a").split(";\\s+"))
+        .collect(Collectors.toMap(a -> a.split("\\s", 2)[0], a -> a.split("\\s", 2)[1]));
+    size = new Dimension(Integer.parseInt(map.get("columns")), Integer.parseInt(map.get("rows")));
+    systemExec("stty raw -echo");
+
+    csi("?1049h"); // private mode
+    flush();
+    csi("2J"); // clear screen
+    csi("?25l"); // cursor visible off
 
     thread = new Thread(this::run);
     thread.start();
@@ -53,13 +68,16 @@ public class TuiConsole implements Tui {
     } catch (InterruptedException e) {
       throw new IllegalStateException(e);
     }
-    terminal.exitPrivateMode();
-    terminal.close();
+    sgrResetColor();
+    csi("?25h"); // cursor visible on
+    csi("?1049l"); // private mode
+    flush();
+    systemExec("stty -raw echo");
   }
 
   @Override
   public Dimension getSize() {
-    return terminal.size;
+    return new Dimension(size);
   }
 
   @Override
@@ -93,27 +111,27 @@ public class TuiConsole implements Tui {
   @Override
   public void update() {
     synchronized (colorLock) {
-      Dimension size = terminal.getTerminalSize();
-      final boolean sizeChanged = !size.equals(lastSize);
-      lastSize = size;
-      terminal.resetColorAndSGR();
+      csiCursorPosition(900, 900);
+      csiReportCursorPosition(); // update the size on every update
+      sgrResetColor();
       StringBuilder stringBuilder = new StringBuilder();
-      int height = Math.min(lastSize.height, color.length);
+      Dimension size = getSize();
+      int height = Math.min(size.height, color.length);
       for (int y = 0; y < height; y++) {
         int co = -1;
         char[] cy = this.c[y];
-        int width = Math.min(lastSize.width, cy == null ? 0 : cy.length);
+        int width = Math.min(size.width, cy == null ? 0 : cy.length);
         for (int x = 0; x < width; x++) {
-          boolean u = this.color[y][x] < UPDATED_BIT || sizeChanged;
+          boolean u = this.color[y][x] < UPDATED_BIT || sizeUpdated;
           int cn = u ? this.color[y][x] : -1;
           if (!Objects.equals(cn, co)) {
             if (stringBuilder.length() > 0) {
-              terminal.putString(stringBuilder.toString());
+              print(stringBuilder.toString());
               stringBuilder.setLength(0);
             }
-            if (co < 0) terminal.setCursorPosition(x, y);
+            if (co < 0) csiCursorPosition(x, y);
             if (cn >= 0) {
-              terminal.setColor(this.color[y][x]);
+              sgrColor(this.color[y][x]);
             }
             co = cn;
           }
@@ -121,20 +139,22 @@ public class TuiConsole implements Tui {
           this.color[y][x] |= UPDATED_BIT;
         }
         if (stringBuilder.length() > 0) {
-          terminal.putString(stringBuilder.toString());
+          print(stringBuilder.toString());
           stringBuilder.setLength(0);
         }
       }
-      terminal.flush();
+      sizeUpdated = false;
+      csiCursorPosition(0, 0);
+      flush();
     }
   }
 
   private void run() {
     try {
       while (!stop) {
-        String key = terminal.pollInput();
+        String key = pollInput();
         if ("F8".equals(key)) {
-          terminal.clearScreen();
+          csi("2J"); // FIXME: 2025-01-09 remove this test clear screen
           key = null;
         }
         if (key == null) {
@@ -156,6 +176,113 @@ public class TuiConsole implements Tui {
   @Override
   public void setKeyListener(Consumer<String> keyListener) {
     this.keyListener = keyListener;
+  }
+
+  public String systemExec(String command) {
+    try {
+      ProcessBuilder processBuilder = new ProcessBuilder();
+      processBuilder.redirectInput(new File("/dev/tty"));
+      processBuilder.command(command.split("\\s+"));
+      Process process = processBuilder.start();
+      int exitStatus;
+      try {
+        exitStatus = process.waitFor();
+      } catch (InterruptedException e) {
+        throw new IOException(e);
+      }
+      String error = new String(process.getErrorStream().readAllBytes());
+      if (exitStatus != 0 || !error.isEmpty()) throw new IOException(error.trim());
+      return new String(process.getInputStream().readAllBytes());
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  public void print(String s) {
+    synchronized (out) {
+      out.print(s);
+    }
+  }
+
+  public void csi(String s) {
+    print("\u001B[" + s);
+  }
+
+  public void sgr(String s) {
+    csi(s + "m");
+  }
+
+  public void flush() {
+    synchronized (out) {
+      out.flush();
+    }
+  }
+
+  public void sgrColor(int color) {
+    sgr(String.format("%d;3%d;%d%d", color >> 3 & 1, color & 7, (color & 0x80) == 0 ? 4 : 10, color >> 4 & 7));
+  }
+
+  public void sgrResetColor() {
+    sgr("0");
+  }
+
+  public void csiCursorPosition(int x, int y) {
+    csi(String.format("%d;%dH", y + 1, x + 1));
+  }
+
+  public void csiReportCursorPosition() {
+    csi("6n");
+  }
+
+  public String readCsi() throws IOException {
+    StringBuilder s = new StringBuilder();
+    while (System.in.available() > 0) {
+      char c = (char) System.in.read();
+      s.append(c);
+      if (c >= 'A' && c <= 'Z' || c == '~') break;
+    }
+    return s.toString();
+  }
+
+  /**
+   * It is expected that pollInput is called from one thread.
+   */
+  public String pollInput() throws IOException {
+    int available = System.in.available();
+    if (available == 0) return null;
+    char c = (char) System.in.read();
+    switch (c) {
+      case '\r':
+      case '\n':
+        return "Enter";
+      case '\u0005': return "Ctrl+e";
+      case '\u001B':
+        String csi = readCsi();
+        Pattern CPR = Pattern.compile("\\[(\\d+);(\\d+)R");
+        Matcher cpr = CPR.matcher(csi);
+        if (cpr.matches()) {
+          Dimension size = new Dimension(Integer.parseInt(cpr.group(2)), Integer.parseInt(cpr.group(1)));
+          if (!size.equals(this.size)) sizeUpdated = true;
+          this.size = size;
+          return pollInput();
+        }
+        switch (csi) {
+          case "[A": return "Up";
+          case "[B": return "Down";
+          case "[C": return "Right";
+          case "[D": return "Left";
+          case "[15~": return "F5";
+          case "[17~": return "F6";
+          case "[18~": return "F7";
+          case "[19~": return "F8";
+          case "[20~": return "F9";
+          case "[21~": return "F10";
+          default:
+            return "^[" + csi;
+        }
+      default:
+        return String.format("\\u%04X", (int) c);
+    }
   }
 
 }
