@@ -41,6 +41,13 @@ public interface Tui extends AutoCloseable {
    */
   void setKeyListener(Consumer<String> keyListener);
 
+  /**
+   * Opens this resource. After construction, Tui expects to be configured and stored in closed pre-configured state.
+   * And then opened and closed as many times as needed.
+   * @return self for fluency
+   */
+  Tui open();
+
   @Override
   void close();
 }

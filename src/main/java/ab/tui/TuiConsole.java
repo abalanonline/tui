@@ -20,6 +20,7 @@ package ab.tui;
 import java.awt.Dimension;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 import java.io.UncheckedIOException;
 import java.util.Arrays;
@@ -32,8 +33,8 @@ import java.util.stream.Collectors;
 public class TuiConsole implements Tui {
 
   private Consumer<String> keyListener = null;
-  private boolean stop;
-  private final Thread thread;
+  private boolean opened;
+  private Thread thread;
 
   private static final int UPDATED_BIT = 0x100;
   private final Object colorLock = new Object();
@@ -41,14 +42,20 @@ public class TuiConsole implements Tui {
   private char[][] c = new char[0][];
   private Dimension size;
   private boolean sizeUpdated;
-  private final PrintStream out;
+  public PrintStream outputStream = System.out;
+  public InputStream inputStream = System.in;
+  public boolean sttyEnabled = true;
 
-  public TuiConsole() {
-    out = System.out;
-    Map<String, String> map = Arrays.stream(systemExec("stty -a").split(";\\s+"))
-        .collect(Collectors.toMap(a -> a.split("\\s", 2)[0], a -> a.split("\\s", 2)[1]));
-    size = new Dimension(Integer.parseInt(map.get("columns")), Integer.parseInt(map.get("rows")));
-    systemExec("stty raw -echo");
+  @Override
+  public Tui open() {
+    if (opened) throw new IllegalStateException("opened");
+    opened = true;
+    if (sttyEnabled) {
+      Map<String, String> map = Arrays.stream(systemExec("stty -a").split(";\\s+"))
+          .collect(Collectors.toMap(a -> a.split("\\s", 2)[0], a -> a.split("\\s", 2)[1]));
+      size = new Dimension(Integer.parseInt(map.get("columns")), Integer.parseInt(map.get("rows")));
+      systemExec("stty raw -echo");
+    }
 
     csi("?1049h"); // private mode
     flush();
@@ -57,11 +64,13 @@ public class TuiConsole implements Tui {
 
     thread = new Thread(this::run);
     thread.start();
+    return this;
   }
 
   @Override
   public void close() {
-    stop = true;
+    if (!opened) return;
+    opened = false;
     try {
       if (!thread.equals(Thread.currentThread())) thread.join();
     } catch (InterruptedException e) {
@@ -71,7 +80,9 @@ public class TuiConsole implements Tui {
     csi("?25h"); // cursor visible on
     csi("?1049l"); // private mode
     flush();
-    systemExec("stty -raw echo");
+    if (sttyEnabled) {
+      systemExec("stty -raw echo");
+    }
   }
 
   @Override
@@ -81,7 +92,7 @@ public class TuiConsole implements Tui {
 
   @Override
   public void print(int x, int y, String s, int attr) {
-    if (stop) throw new IllegalStateException("closed");
+    if (!opened) throw new IllegalStateException("closed");
     int x1 = x + s.length();
     synchronized (colorLock) {
       int length = color.length;
@@ -149,7 +160,7 @@ public class TuiConsole implements Tui {
 
   private void run() {
     try {
-      while (!stop) {
+      while (opened) {
         String key = pollInput();
         if ("F8".equals(key)) {
           csi("2J"); // FIXME: 2025-01-09 remove this test clear screen
@@ -197,8 +208,8 @@ public class TuiConsole implements Tui {
   }
 
   public void print(String s) {
-    synchronized (out) {
-      out.print(s);
+    if (outputStream != null) synchronized (outputStream) {
+      outputStream.print(s);
     }
   }
 
@@ -211,8 +222,8 @@ public class TuiConsole implements Tui {
   }
 
   public void flush() {
-    synchronized (out) {
-      out.flush();
+    if (outputStream != null) synchronized (outputStream) {
+      outputStream.flush();
     }
   }
 
@@ -232,10 +243,10 @@ public class TuiConsole implements Tui {
     csi("6n");
   }
 
-  public String readCsi() throws IOException {
+  private String readCsi() throws IOException {
     StringBuilder s = new StringBuilder();
-    while (System.in.available() > 0) {
-      char c = (char) System.in.read();
+    while (inputStream.available() > 0) {
+      char c = (char) inputStream.read();
       s.append(c);
       if (c >= 'A' && c <= 'Z' || c == '~') break;
     }
@@ -246,9 +257,9 @@ public class TuiConsole implements Tui {
    * It is expected that pollInput is called from one thread.
    */
   public String pollInput() throws IOException {
-    int available = System.in.available();
-    if (available == 0) return null;
-    char c = (char) System.in.read();
+    if (inputStream == null || inputStream.available() == 0) return null;
+    char c = (char) inputStream.read();
+    if (c >= '\u0020' && c <= '\u007E') return Character.toString(c);
     switch (c) {
       case '\r':
       case '\n':
