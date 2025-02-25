@@ -244,6 +244,8 @@ public class TuiConsole implements Tui {
   }
 
   private String readCsi() throws IOException {
+    // FIXME this will fail on slow connection
+    // FIXME this method must have esc timeout implemented the same way as vim and others
     StringBuilder s = new StringBuilder();
     while (inputStream.available() > 0) {
       char c = (char) inputStream.read();
@@ -276,6 +278,7 @@ public class TuiConsole implements Tui {
           return pollInput();
         }
         switch (csi) {
+          case "": return "Esc";
           case "[A": return "Up";
           case "[B": return "Down";
           case "[C": return "Right";
@@ -287,7 +290,7 @@ public class TuiConsole implements Tui {
           case "[20~": return "F9";
           case "[21~": return "F10";
           default:
-            return "^[" + csi;
+            return "^[" + csi.replace("\u001B", "^[");
         }
       default:
         return String.format("\\u%04X", (int) c);
