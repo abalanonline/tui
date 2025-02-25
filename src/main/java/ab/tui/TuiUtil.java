@@ -175,9 +175,9 @@ public class TuiUtil {
       ENTER((o, s) -> { o.exit = true; });
 
       public static final String KEY_BINDINGS =
-          "F1, Alt+i: INK\n" +
-          "F2, t: TOGGLE\n" +
-          "F3, Alt+p: PAPER\n" +
+          "F1, Alt+i, +, =, 1: INK\n" +
+          "F2, t, Tab, Space: TOGGLE\n" +
+          "F3, Alt+p, -, 0: PAPER\n" +
           "Ctrl+e: haltCatchFire";
 
       private final BiConsumer<Paint, String> consumer;
@@ -240,7 +240,9 @@ public class TuiUtil {
         String v = s[1].trim();
         s = s[0].split(",");
         for (String k : s) {
-          bindings.put(k.trim(), v);
+          String key = k.trim();
+          if ("Space".equals(key)) key = " ";
+          bindings.put(key, v);
         }
       }
     }

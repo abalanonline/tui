@@ -294,4 +294,10 @@ public class TuiConsole implements Tui {
     }
   }
 
+  public static void main(String[] args) {
+    try (Tui tui = new TuiConsole().open()) {
+      TuiUtil.testTui(tui);
+    }
+  }
+
 }

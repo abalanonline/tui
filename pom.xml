@@ -25,7 +25,7 @@
 
   <groupId>ab</groupId>
   <artifactId>tui</artifactId>
-  <version>2.0-beta</version>
+  <version>2.0</version>
 
   <properties>
     <java.version>11</java.version>
@@ -33,7 +33,7 @@
     <maven.compiler.target>${java.version}</maven.compiler.target>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-    <exec.mainClass>ab.tui.Main</exec.mainClass>
+    <exec.mainClass>ab.tui.TuiConsole</exec.mainClass>
   </properties>
 
   <dependencies>
